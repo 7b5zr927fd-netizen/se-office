@@ -1,0 +1,25 @@
+# Автоматична збірка інсталяторів (.exe, .dmg, .AppImage) на GitHub.
+# Як користуватись: завантажте папку в репозиторій GitHub, потім створіть тег: git tag v1.1.0 && git push --tags
+# Готові файли з'являться на сторінці Releases вашого репозиторію — їх і роздавайте користувачам.
+name: Build installers
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

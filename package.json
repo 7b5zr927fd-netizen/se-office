@@ -1,0 +1,22 @@
+{
+  "name": "se-office",
+  "version": "1.2.0",
+  "description": "SE Офіс — чати з різними ШІ та Notion в одній програмі",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "desktop": "electron .",
+    "dist": "electron-builder"
+  },
+  "engines": { "node": ">=18" },
+  "devDependencies": { "electron": "^33.0.0", "electron-builder": "^25.0.0" },
+  "build": {
+    "appId": "com.se.office",
+    "productName": "SE Офіс",
+    "files": ["server.js", "convert.js", "public/**", "desktop/**", "package.json"],
+    "win": { "target": "nsis" },
+    "mac": { "target": "dmg" },
+    "linux": { "target": "AppImage" }
+  }
+}
