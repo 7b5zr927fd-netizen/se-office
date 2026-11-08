@@ -5,7 +5,7 @@ function lsGet(k, d) { try { var v = localStorage.getItem(k); return v === null 
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 var STATUS = {}, cur = null, busy = {}, states = {}, saved = {};
 try { saved = JSON.parse(lsGet("se_chats_v2", "{}")) || {}; } catch (e) { saved = {}; }
-var webOn = lsGet("se_web", "1") !== "0";
+var webOn = lsGet("se_web", "1") !== "0", view = lsGet("se_view", "office") === "chat" ? "chat" : "office";
 var log = $("log"), col = $("col"), inp = $("inp"), chatBox = { open: true };
 function on(p) { return !!(STATUS[p] && STATUS[p].connected); }
 
@@ -184,7 +184,10 @@ function persist() {
   for (var k in states) { var s = states[k]; o[k] = { turns: s.turns.slice(-30), msgs: s.msgs.filter(function (m) { return !m.temp; }).slice(-100).map(function (m) { return { cls: m.cls, text: m.text }; }) }; }
   lsSet("se_chats_v2", JSON.stringify(o));
 }
-function avatar(t, big) { return '<div class="av" style="background:' + t.c + '">' + esc(t.n.charAt(0)) + (t === CFG.lead ? '<span class="crown">👑</span>' : "") + "</div>"; }
+function avatar(t, big) {
+  var src = ""; try { src = window.Office && Office.portrait ? Office.portrait(t, agents.indexOf(t)) : ""; } catch (e) {}
+  return '<div class="av' + (src ? " pix" : "") + '" style="background:' + t.c + '">' + (src ? '<img alt="" src="' + src + '">' : esc(t.n.charAt(0))) + (t === CFG.lead ? '<span class="crown">👑</span>' : "") + "</div>";
+}
 function paint(d, m) { if (m.cls === "a") d.innerHTML = m.typing ? '<span class="typing"><i></i><i></i><i></i></span>' : md(m.text); else d.textContent = m.text; }
 function elFor(m) { var d = document.createElement("div"); d.className = "msg " + m.cls; paint(d, m); return d; }
 function scrollDown() { log.scrollTop = log.scrollHeight; }
@@ -223,7 +226,7 @@ function openChat(t) {
   cur = { t: t, st: stateOf(t) }; col.innerHTML = "";
   if (!cur.st.msgs.length) col.innerHTML = '<div class="empty">' + avatar(t) + "<h2></h2><div></div></div>", col.querySelector("h2").textContent = t.n, col.querySelector(".empty div:last-child").textContent = t.d || t.r;
   cur.st.msgs.forEach(function (m) { m.el = elFor(m); col.appendChild(m.el); });
-  chatHeader(); renderAgents(); scrollDown(); inp.focus();
+  chatHeader(); renderAgents(); scrollDown(); if (view === "chat") inp.focus(); refreshResult();
 }
 
 var TOOLS_WEB = [
@@ -266,22 +269,22 @@ async function send(text) {
   var t = cur && cur.t, st = cur && cur.st; text = String(text || "").trim();
   if (!t || !text || busy[t.n]) return;
   if (!on(t.provider)) { addMsg(st, "s", t.n + " не підключено."); openSettings(); return; }
-  busy[t.n] = true; chatHeader(); renderAgents(); addMsg(st, "u", text); inp.value = ""; grow(); askNotifyPermission();
+  busy[t.n] = true; Office.status(t.n, "Беруся до роботи…"); chatHeader(); renderAgents(); addMsg(st, "u", text); inp.value = ""; grow(); askNotifyPermission();
   var snap = st.hist.length, out = null, t0 = Date.now(), lastText = "", failed = false;
   st.hist.push({ role: "user", content: text });
   try {
     for (var i = 0; i < 12; i++) {
-      out = addMsg(st, "a", "", { typing: true, temp: true });
+      Office.status(t.n, "Думаю…"); out = addMsg(st, "a", "", { typing: true, temp: true });
       var r = await post("/api/chat", { provider: t.provider, system: CFG.SYSTEM(t, t === CFG.lead), messages: st.hist, tools: activeTools() });
       st.hist.push({ role: "assistant", content: r.content });
       var txt = r.content.filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("\n");
-      if (txt) { setMsg(out, txt); out.temp = false; lastText = txt; } else { dropMsg(st, out); out = null; }
+      if (txt) { setMsg(out, txt); out.temp = false; lastText = txt; refreshResult(); } else { dropMsg(st, out); out = null; }
       var uses = r.content.filter(function (b) { return b.type === "tool_use"; });
       if (r.stop_reason !== "tool_use" || !uses.length) break;
       var results = [];
       for (var j = 0; j < uses.length; j++) {
         var u = uses[j], tool = TOOLS.filter(function (x) { return x.name === u.name; })[0], a = u.input || {};
-        addMsg(st, "s", tool && tool.label ? tool.label(a) : (LABEL[u.name] || "🔧 " + u.name));
+        var lbl = tool && tool.label ? tool.label(a) : (LABEL[u.name] || "🔧 " + u.name); addMsg(st, "s", lbl); Office.status(t.n, lbl);
         try { if (!tool) throw new Error("Невідомий інструмент"); results.push({ type: "tool_result", tool_use_id: u.id, content: cut(await tool.run(a)) }); }
         catch (e) { results.push({ type: "tool_result", tool_use_id: u.id, content: "Помилка: " + (e.message || e), is_error: true }); }
       }
@@ -292,7 +295,7 @@ async function send(text) {
     st.hist.length = snap; if (out && out.typing) dropMsg(st, out);
     addMsg(st, "s", "Помилка: " + (e.message || e)); failed = true; notifyFail(t.n, e.message || e);
   }
-  busy[t.n] = false; persist(); if (cur) { chatHeader(); } renderAgents();
+  busy[t.n] = false; Office.done(t.n, !failed); persist(); if (cur) { chatHeader(); refreshResult(); } renderAgents();
   if (!failed) notifyDone(t.n, lastText, (Date.now() - t0) / 1000);
 }
 function grow() { inp.style.height = "auto"; inp.style.height = Math.min(inp.scrollHeight, 180) + "px"; }
@@ -363,6 +366,34 @@ $("sx").addEventListener("click", function () { lsSet("se_notion_url", $("nurl")
 var wb = $("web"); wb.checked = webOn; wb.addEventListener("change", function () { webOn = wb.checked; lsSet("se_web", webOn ? "1" : "0"); if (cur) chatHeader(); });
 var nt = $("ntf"); nt.checked = notifyOn; nt.addEventListener("change", function () { notifyOn = nt.checked; lsSet("se_notify", notifyOn ? "1" : "0"); if (notifyOn) { askNotifyPermission(); beep(); toast("🔔 Сповіщення увімкнено"); } });
 
+
+/* ---- Віртуальний офіс ---- */
+function agentByName(n) { return agents.filter(function (t) { return t.n === n; })[0]; }
+function refreshResult() {
+  var box = $("ofres"); if (!box || view !== "office" || !cur) return;
+  var m = cur.st.msgs.filter(function (x) { return !x.typing && (x.cls === "a" || (x.cls === "s" && /^Помилка/.test(x.text))); }).pop();
+  box.innerHTML = '<div class="who"><span></span><a id="ofopen">Відкрити чат ↗</a></div><div class="body"></div>';
+  box.querySelector(".who span").textContent = cur.t.n + " — " + cur.t.r + (busy[cur.t.n] ? " · працює…" : "");
+  box.querySelector(".body").innerHTML = m ? (m.cls === "a" ? md(m.text) : esc(m.text)) : '<span class="hint">Оберіть працівника кліком, напишіть завдання внизу — він сяде за ноутбук і візьметься до роботи. Двічі клікніть по працівнику, щоб відкрити чат.</span>';
+  $("ofopen").onclick = function () { setView("chat"); };
+  box.scrollTop = box.scrollHeight;
+}
+function setView(v) {
+  view = v; lsSet("se_view", v);
+  log.style.display = v === "chat" ? "" : "none"; $("chips").style.display = v === "chat" ? "" : "none";
+  $("office").style.display = v === "office" ? "flex" : "none";
+  $("vchat").classList.toggle("on", v === "chat"); $("voff").classList.toggle("on", v === "office");
+  if (v === "office") { Office.start(); refreshResult(); } else { Office.stop(); scrollDown(); }
+}
+Office.init($("ofc"), agents, {
+  busy: function (n) { return !!busy[n]; },
+  selected: function () { return cur ? cur.t.n : ""; },
+  select: function (n) { var t = agentByName(n); if (t) openChat(t); },
+  open: function (n) { var t = agentByName(n); if (t) { openChat(t); setView("chat"); } }
+});
+$("vchat").addEventListener("click", function () { setView("chat"); });
+$("voff").addEventListener("click", function () { setView("office"); });
+
 /* ---- Старт ---- */
-openChat(agents[0]);
+openChat(agents[0]); setView(view);
 refresh().then(function (s) { if (cur) chatHeader(); var any = Object.keys(s || {}).some(function (k) { return s[k].connected && k !== "notion" && k !== "telegram"; }); if (!any) openSettings(); });

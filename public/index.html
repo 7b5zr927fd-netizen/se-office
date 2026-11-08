@@ -29,6 +29,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 .top{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
 .top .ti{flex:1;min-width:0}.top h1{margin:0;font-size:16px;line-height:1.25}.top p{margin:0;font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #menu{display:none}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{border:0;background:none;padding:7px 12px;font-size:13px}.seg button.on{background:var(--acc);color:var(--accink)}
+.av.pix{overflow:visible}.av.pix img{width:100%;height:100%;display:block;border-radius:inherit;image-rendering:pixelated}
+#office{flex:1;min-height:0;display:none;flex-direction:column;gap:10px;padding:12px 18px 0}#office .stage{flex:1;min-height:180px}#office canvas{width:100%;height:100%;display:block;border-radius:18px;border:1px solid #3a2c48;background:#1b1524;box-shadow:0 10px 34px rgba(40,16,60,.28)}
+#ofres{max-height:34%;overflow-y:auto;border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-size:14px;background:var(--bg)}#ofres .hint{color:var(--mut);font-size:13px}#ofres .who{font-size:12px;color:var(--mut);margin-bottom:4px;display:flex;justify-content:space-between;gap:8px}#ofres .who a{color:var(--acc);cursor:pointer}
 #log{flex:1;overflow-y:auto;padding:22px 18px 8px;scroll-behavior:smooth}
 .col{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 .msg{max-width:100%;word-wrap:break-word;overflow-wrap:anywhere}
@@ -64,7 +68,7 @@ dialog::backdrop{background:rgba(10,10,20,.5);backdrop-filter:blur(3px)}
 .wel{background:var(--hover);border-radius:14px;padding:12px 14px;font-size:13.5px;margin:6px 0}.wel ol{margin:6px 0 0;padding-left:1.3em}
 #cfm{width:min(440px,calc(100% - 24px))}#cfm pre{white-space:pre-wrap;font-size:12px;background:var(--code);border-radius:10px;padding:10px;max-height:200px;overflow:auto;margin:8px 0}
 #toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,40px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:13px;max-width:min(560px,92vw);transition:.25s;z-index:99}#toast.show{opacity:1;transform:translate(-50%,0)}
-@media (max-width:760px){.app{grid-template-columns:1fr}.side{position:fixed;inset:0 20% 0 0;z-index:20;transform:translateX(-102%);transition:.25s;box-shadow:var(--shadow);padding-top:env(safe-area-inset-top,0px)}.side.open{transform:none}#menu{display:inline-flex}}
+@media (max-width:760px){#office .stage{flex:none;min-height:0;aspect-ratio:384/216}#office{overflow-y:auto}.app{grid-template-columns:1fr}.side{position:fixed;inset:0 20% 0 0;z-index:20;transform:translateX(-102%);transition:.25s;box-shadow:var(--shadow);padding-top:env(safe-area-inset-top,0px)}.side.open{transform:none}#menu{display:inline-flex}}
 </style>
 </head>
 <body>
@@ -77,8 +81,10 @@ dialog::backdrop{background:rgba(10,10,20,.5);backdrop-filter:blur(3px)}
 <main class="main">
 <header class="top"><button class="btn" id="menu" aria-label="Меню">☰</button>
 <div class="ti"><h1 id="ch"></h1><p id="cst"></p></div>
+<div class="seg"><button id="voff" class="on">🏢 Офіс</button><button id="vchat">💬 Чат</button></div>
 <a class="btn" id="nl" target="_blank" rel="noopener" style="display:none">Notion ↗</a><a class="btn" id="site" target="_blank" rel="noopener" style="display:none">Сайт ↗</a><button class="btn" id="clr" title="Очистити цей чат">🧹</button></header>
 <div id="log"><div class="col" id="col"></div></div>
+<div id="office"><div class="stage"><canvas id="ofc"></canvas></div><div id="ofres"></div></div>
 <div class="chips" id="chips"></div>
 <div class="comp"><div class="box"><textarea id="inp" rows="1" placeholder="Напишіть повідомлення…"></textarea><button id="snd" aria-label="Надіслати">↑</button></div><div class="note">Кожну зміну в Notion підтверджуєте ви. ШІ можуть помилятися — перевіряйте важливе.</div></div>
 </main>
@@ -101,6 +107,7 @@ dialog::backdrop{background:rgba(10,10,20,.5);backdrop-filter:blur(3px)}
 <dialog id="cfm"><div class="dh"><h2>Підтвердіть зміну в Notion</h2><p id="cft"></p></div><div class="db"><pre id="cfp"></pre></div><div class="df"><button class="btn" id="cfn">Скасувати</button><button class="btn pri" id="cfy">Дозволити</button></div></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="config.js"></script>
+<script src="office.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

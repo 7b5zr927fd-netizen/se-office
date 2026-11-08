@@ -1,6 +1,6 @@
 {
   "name": "se-office",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "description": "SE Офіс — чати з різними ШІ та Notion в одній програмі",
   "private": true,
   "main": "desktop/main.js",
